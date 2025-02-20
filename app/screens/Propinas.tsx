@@ -4,12 +4,22 @@ import {
   TextInput, 
   View, 
   TouchableOpacity,
-  ScrollView
+  ScrollView,
+  FlatList
 } from 'react-native';
 import React, { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import Boton from '../components/Boton';
 import { COLORS, FONTS } from '../constants/theme';
+
+interface HistoryItem {
+  id: string;
+  consumo: number;
+  porcentaje: number;
+  propina: number;
+  total: number;
+  fecha: Date;
+}
 
 const Propinas = () => {
   // Estados
@@ -18,6 +28,7 @@ const Propinas = () => {
   const [otroPorcentaje, setOtroPorcentaje] = useState<string>('');
   const [porcentajeActivo, setPorcentajeActivo] = useState<number | null>(null);
   const [showResults, setShowResults] = useState<boolean>(false);
+  const [historial, setHistorial] = useState<HistoryItem[]>([]);
 
   // Funcion para calcular propina
   const calcularPropina = (porcentaje: number) => {
@@ -30,6 +41,18 @@ const Propinas = () => {
       if (!showResults) {
         setShowResults(true);
       }
+      
+      // Agregamos al historial
+      const nuevoItem: HistoryItem = {
+        id: Date.now().toString(),
+        consumo: montoConsumo,
+        porcentaje: porcentaje,
+        propina: propinaCalculada,
+        total: montoConsumo + propinaCalculada,
+        fecha: new Date()
+      };
+      
+      setHistorial(prevHistorial => [nuevoItem, ...prevHistorial]);
     }
   };
 
@@ -48,11 +71,39 @@ const Propinas = () => {
     setShowResults(false);
   };
 
+  // Renderizar un item del historial
+  const renderHistoryItem = ({ item }: { item: HistoryItem }) => {
+    const formattedDate = item.fecha.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    
+    return (
+      <View style={styles.historyItem}>
+        <View style={styles.historyHeader}>
+          <Text style={styles.historyTime}>{formattedDate}</Text>
+          <Text style={styles.historyPercentage}>{item.porcentaje}%</Text>
+        </View>
+        <View style={styles.historyDetails}>
+          <View style={styles.historyRow}>
+            <Text style={styles.historyLabel}>Consumo:</Text>
+            <Text style={styles.historyValue}>${item.consumo.toFixed(2)}</Text>
+          </View>
+          <View style={styles.historyRow}>
+            <Text style={styles.historyLabel}>Propina:</Text>
+            <Text style={styles.historyValue}>${item.propina.toFixed(2)}</Text>
+          </View>
+          <View style={styles.historyRow}>
+            <Text style={styles.historyTotalLabel}>Total:</Text>
+            <Text style={styles.historyTotalValue}>${item.total.toFixed(2)}</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
   // Total a calcular
   const total = isNaN(parseFloat(consumo) + propina) ? 0 : (parseFloat(consumo) + propina);
 
   return (
-
+    <View style={styles.mainContainer}>
       <ScrollView 
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
@@ -130,21 +181,42 @@ const Propinas = () => {
               <Text style={styles.clearButtonText}>Reiniciar</Text>
             </TouchableOpacity>
           </View>
+          
+          {/* Historial de Operaciones */}
+          {historial.length > 0 && (
+            <View style={styles.historyContainer}>
+              <Text style={styles.historyTitle}>Historial de Operaciones</Text>
+              <FlatList
+                data={historial}
+                renderItem={renderHistoryItem}
+                keyExtractor={item => item.id}
+                showsVerticalScrollIndicator={false}
+                style={styles.historyList}
+              />
+            </View>
+          )}
         </View>
       </ScrollView>
+    </View>
   );
 };
 
 export default Propinas;
 
 const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   scrollContainer: {
     flexGrow: 1,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
   },
   container: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     width: '100%',
   },
   card: {
@@ -157,6 +229,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 20,
     elevation: 8,
+    marginBottom: 20,
   },
   sectionTitle: {
     fontSize: 18,
@@ -166,7 +239,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   inputContainer: {
-    width: '80%',
+    width: '100%',
     marginBottom: 15,
   },
   inputWrapper: {
@@ -214,11 +287,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     marginBottom: 24,
+    width: '100%',
   },
   applyButton: {
     backgroundColor: COLORS.primary,
     borderRadius: 12,
-    height: 40,
+    height: 50,
     width: 60,
     justifyContent: 'center',
     alignItems: 'center',
@@ -272,6 +346,81 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginLeft: 6,
     fontFamily: FONTS.regular,
+  },
+  // Estilos para el historial
+  historyContainer: {
+    width: '100%',
+    marginTop: 10,
+  },
+  historyTitle: {
+    fontSize: 20,
+    color: COLORS.textPrimary,
+    fontFamily: FONTS.bold,
+    marginBottom: 16,
+  },
+  historyList: {
+    width: '100%',
+  },
+  historyItem: {
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  historyTime: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.regular,
+  },
+  historyPercentage: {
+    fontSize: 16,
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
+    backgroundColor: COLORS.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  historyDetails: {
+    backgroundColor: COLORS.inputBackground,
+    borderRadius: 12,
+    padding: 12,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  historyLabel: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.regular,
+  },
+  historyValue: {
+    fontSize: 14,
+    color: COLORS.textPrimary,
+    fontFamily: FONTS.semiBold,
+  },
+  historyTotalLabel: {
+    fontSize: 16,
+    color: COLORS.textPrimary,
+    fontFamily: FONTS.bold,
+  },
+  historyTotalValue: {
+    fontSize: 18,
+    color: COLORS.accent,
+    fontFamily: FONTS.bold,
   },
 });
 
